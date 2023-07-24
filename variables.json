@@ -1,0 +1,24 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "variables": {
+      "hubLocation": "useast",
+      "spokeLocations": ["useast", "uscentral", "uswest"],
+      "hubVNetName": "HubVNet",
+      "hubSubnetName": "HubSubnet",
+      "spokeVNetNames": ["SpokeVNet1", "SpokeVNet2", "SpokeVNet3"],
+      "spokeSubnetPrefix": "10.1.0.0/24",
+      "azureFirewallName": "MyAzureFirewall",
+      "vpnGatewayName": "MyVpnGateway",
+      "vpnGatewaySku": "VpnGw1",
+      "vpnGatewayVNetConnectionName": "VNetToVNetConnection",
+      "vpnSharedKey": "Aws@1234!@#$",
+      "vmCount": 1,
+      "vmTemplateUri": "https://raw.githubusercontent.com/kiranug/azure-arm/main/vmTemplate.json",
+      "vmAdminUsername": "adminuser",
+      "vmAdminPassword": "Aws@123456!@#",
+      "vmSize": "Standard_B2s",
+      "windowsOSVersion": "2019-Datacenter"
+    }
+  }
+  

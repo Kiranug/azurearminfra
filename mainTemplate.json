@@ -1,0 +1,152 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "hubLocation": {
+        "type": "string",
+        "defaultValue": "useast",
+        "metadata": {
+          "description": "Location for the hub virtual network."
+        }
+      },
+      "spokeLocations": {
+        "type": "array",
+        "defaultValue": ["useast", "uscentral", "uswest"],
+        "metadata": {
+          "description": "Locations for the spoke virtual networks."
+        }
+      },
+      "hubVNetName": {
+        "type": "string",
+        "defaultValue": "HubVNet",
+        "metadata": {
+          "description": "Name of the hub virtual network."
+        }
+      },
+      "vmNamePrefix": {
+        "type": "string",
+        "metadata": {
+          "description": "Prefix for the VM names in each spoke virtual network."
+        }
+      },
+      "vmCount": {
+        "type": "int",
+        "defaultValue": 1,
+        "metadata": {
+          "description": "Number of VMs to be deployed in each spoke virtual network."
+        }
+      },
+      "vmAdminUsername": {
+        "type": "string",
+        "defaultValue": "adminuser",
+        "metadata": {
+          "description": "Username for the VMs."
+        }
+      },
+      "vmAdminPassword": {
+        "type": "securestring",
+        "defaultValue": "Aws@123456!@#",
+        "metadata": {
+          "description": "Password for the VMs."
+        }
+      },
+      "vmSize": {
+        "type": "string",
+        "defaultValue": "Standard_B2s",
+        "metadata": {
+          "description": "Size of the VMs."
+        }
+      },
+      "windowsOSVersion": {
+        "type": "string",
+        "defaultValue": "2019-Datacenter",
+        "metadata": {
+          "description": "Windows OS version for the VMs."
+        }
+      }
+    },
+    "variables": {
+      "hubVNetName": "[concat(parameters('hubVNetName'), 'VNet')]",
+      "hubSubnetName": "HubSubnet",
+      "spokeSubnetPrefix": "10.1.0.0/24",
+      "azureFirewallName": "MyAzureFirewall",
+      "vpnGatewayName": "MyVpnGateway",
+      "vpnGatewaySku": "VpnGw1",
+      "vpnGatewayVNetConnectionName": "VNetToVNetConnection",
+      "vpnSharedKey": "Aws@1234!@#$",
+      "vmTemplateUri": "https://raw.githubusercontent.com/kiranug/azure-arm/main/vmTemplate.json"
+    },
+    "resources": [
+      {
+        "type": "Microsoft.Network/virtualNetworks",
+        "apiVersion": "2020-11-01",
+        "name": "[variables('hubVNetName')]",
+        "location": "[parameters('hubLocation')]",
+        "properties": {
+          "addressSpace": {
+            "addressPrefixes": ["10.0.0.0/16"]
+          },
+          "subnets": [
+            {
+              "name": "[variables('hubSubnetName')]",
+              "properties": {
+                "addressPrefix": "10.0.0.0/24"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "Microsoft.Resources/deployments",
+        "apiVersion": "2020-06-01",
+        "name": "spokeVnetLoop",
+        "copy": {
+          "name": "spokeVnetLoop",
+          "count": "[length(parameters('spokeLocations'))]"
+        },
+        "resourceGroup": "[resourceGroup().name]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/virtualNetworks', variables('hubVNetName'))]"
+        ],
+        "properties": {
+          "mode": "Incremental",
+          "template": {
+            "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+            "contentVersion": "1.0.0.0",
+            "resources": [
+              {
+                "type": "Microsoft.Network/virtualNetworks",
+                "apiVersion": "2020-11-01",
+                "name": "[variables('spokeVNetNames')[copyIndex()]]",
+                "location": "[parameters('spokeLocations')[copyIndex()]]",
+                "properties": {
+                  "addressSpace": {
+                    "addressPrefixes": ["[variables('spokeSubnetPrefix')]"]
+                  },
+                  "subnets": [
+                    {
+                      "name": "SpokeSubnet",
+                      "properties": {
+                        "addressPrefix": "[variables('spokeSubnetPrefix')]"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "outputs": {
+      "hubVNetNameOutput": {
+        "type": "string",
+        "value": "[variables('hubVNetName')]"
+      },
+      "spokeVNetNamesOutput": {
+        "type": "array",
+        "value": "[variables('spokeVNetNames')]"
+      }
+    }
+  }
+  

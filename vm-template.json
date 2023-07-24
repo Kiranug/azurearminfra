@@ -1,0 +1,142 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "vmNamePrefix": {
+        "type": "string"
+      },
+      "vmCount": {
+        "type": "int"
+      },
+      "vmAdminUsername": {
+        "type": "string"
+      },
+      "vmAdminPassword": {
+        "type": "securestring"
+      },
+      "vmSize": {
+        "type": "string"
+      },
+      "windowsOSVersion": {
+        "type": "string"
+      },
+      "subnetId": {
+        "type": "string"
+      },
+      "nsgId": {
+        "type": "string"
+      }
+    },
+    "variables": {
+      "apiVersion": "2020-06-01",
+      "storageAccountType": "Standard_LRS"
+    },
+    "resources": [
+      {
+        "type": "Microsoft.Compute/availabilitySets",
+        "apiVersion": "[variables('apiVersion')]",
+        "name": "[format('{0}-avset', parameters('vmNamePrefix'))]",
+        "location": "[resourceGroup().location]",
+        "properties": {
+          "platformFaultDomainCount": 2,
+          "platformUpdateDomainCount": 5
+        }
+      },
+      {
+        "type": "Microsoft.Network/networkInterfaces",
+        "apiVersion": "[variables('apiVersion')]",
+        "name": "[format('{0}-nic-{1}', parameters('vmNamePrefix'), copyIndex())]",
+        "location": "[resourceGroup().location]",
+        "copy": {
+          "name": "nicLoop",
+          "count": "[parameters('vmCount')]"
+        },
+        "dependsOn": [
+          "[resourceId('Microsoft.Network/networkSecurityGroups', 'NSG')]",
+          "[resourceId('Microsoft.Network/virtualNetworks', 'VNet')]"
+        ],
+        "properties": {
+          "ipConfigurations": [
+            {
+              "name": "ipconfig",
+              "properties": {
+                "subnet": {
+                  "id": "[parameters('subnetId')]"
+                }
+              }
+            }
+          ],
+          "networkSecurityGroup": {
+            "id": "[resourceId('Microsoft.Network/networkSecurityGroups', 'NSG')]"
+          }
+        }
+      },
+      {
+        "type": "Microsoft.Compute/virtualMachines",
+        "apiVersion": "[variables('apiVersion')]",
+        "name": "[format('{0}-vm-{1}', parameters('vmNamePrefix'), copyIndex())]",
+        "location": "[resourceGroup().location]",
+        "copy": {
+          "name": "vmLoop",
+          "count": "[parameters('vmCount')]"
+        },
+        "dependsOn": [
+          "[resourceId('Microsoft.Compute/availabilitySets', format('{0}-avset', parameters('vmNamePrefix')))]",
+          "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-nic-{1}', parameters('vmNamePrefix'), copyIndex()))]"
+        ],
+        "properties": {
+          "availabilitySet": {
+            "id": "[resourceId('Microsoft.Compute/availabilitySets', format('{0}-avset', parameters('vmNamePrefix')))]"
+          },
+          "hardwareProfile": {
+            "vmSize": "[parameters('vmSize')]"
+          },
+          "osProfile": {
+            "computerName": "[format('{0}-vm-{1}', parameters('vmNamePrefix'), copyIndex())]",
+            "adminUsername": "[parameters('vmAdminUsername')]",
+            "adminPassword": "[parameters('vmAdminPassword')]"
+          },
+          "storageProfile": {
+            "imageReference": {
+              "publisher": "MicrosoftWindowsServer",
+              "offer": "WindowsServer",
+              "sku": "[parameters('windowsOSVersion')]",
+              "version": "latest"
+            },
+            "osDisk": {
+              "name": "[format('{0}-vm-osdisk-{1}', parameters('vmNamePrefix'), copyIndex())]",
+              "osType": "Windows",
+              "createOption": "FromImage",
+              "caching": "ReadWrite",
+              "managedDisk": {
+                "storageAccountType": "[variables('storageAccountType')]"
+              }
+            },
+            "dataDisks": []
+          },
+          "networkProfile": {
+            "networkInterfaces": [
+              {
+                "id": "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-nic-{1}', parameters('vmNamePrefix'), copyIndex()))]"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "outputs": {
+      "vmNames": {
+        "type": "array",
+        "value": "[split(concat(parameters('vmNamePrefix'), '-vm-', join(range(0, parameters('vmCount') - 1), ',')), ',')]"
+      },
+      "nicIds": {
+        "type": "array",
+        "value": "[split(concat(resourceId('Microsoft.Network/networkInterfaces', format('{0}-nic-', parameters('vmNamePrefix')), copyIndex()), ','), ',')]"
+      },
+      "vmIds": {
+        "type": "array",
+        "value": "[split(concat(resourceId('Microsoft.Compute/virtualMachines', format('{0}-vm-', parameters('vmNamePrefix')), copyIndex()), ','), ',')]"
+      }
+    }
+  }
+  
